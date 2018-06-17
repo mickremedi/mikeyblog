@@ -1,9 +1,17 @@
 from flask import render_template, flash, redirect, url_for, request
 from App import app, db
-from App.forms import LoginForm, RegistrationForm
+from App.forms import LoginForm, RegistrationForm, EditProfileForm
 from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.urls import url_parse
 from App.models import User
+from datetime import datetime
+
+
+@app.before_request
+def before_request():
+    if current_user.is_authenticated:
+        current_user.last_seen = datetime.utcnow()
+        db.session.commit()
 
 
 @app.route('/index')
@@ -31,7 +39,7 @@ def register():
     form = RegistrationForm()
 
     if form.validate_on_submit():
-        user = User(username=form.username.data+"Mikey", email=form.email.data)
+        user = User(username=form.username.data + "Mikey", email=form.email.data)
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
@@ -69,9 +77,25 @@ def logout():
 @app.route('/user/<username>')
 @login_required
 def user(username):
-    user = User.query.filter_by(username=username).first_or_404()
+    user_query = User.query.filter_by(username=username).first_or_404()
     posts = [
-        {'author':user, 'body':'Hi mikey is sexy'},
-        {'author':user, 'body':'No one can beat his sexiness'}
+        {'author': user_query, 'body': 'Hi mikey is sexy'},
+        {'author': user_query, 'body': 'No one can beat his sexiness'}
     ]
-    return render_template('user.html', user=user, posts=posts)
+    return render_template('user.html', user=user_query, posts=posts)
+
+
+@app.route('/user/<username>/edit_profile', methods=['GET', 'POST'])
+@login_required
+def edit_profile(username):
+    form = EditProfileForm(current_user.username)
+    if form.validate_on_submit():
+        current_user.username = form.username.data
+        current_user.about_me = form.about_me.data
+        db.session.commit()
+        flash('Your changes have been saved')
+        return redirect(url_for('edit_profile', username=username))
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+        form.about_me.data = current_user.about_me
+    return render_template('edit_profile.html', title='Edit Profile', form=form)
