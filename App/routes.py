@@ -20,11 +20,11 @@ def before_request():
 def index():
     posts = [
         {
-            'author': {'username': 'SexyMike'},
+            'author': {'username': 'SexyMikey'},
             'body': 'Beautiful day in MikeyTown!'
         },
         {
-            'author': {'username': 'CuddlyMike'},
+            'author': {'username': 'CuddlyMikey'},
             'body': 'I still want to watch the Avengers!! 😭'
         }
     ]
@@ -99,3 +99,35 @@ def edit_profile(username):
         form.username.data = current_user.username
         form.about_me.data = current_user.about_me
     return render_template('edit_profile.html', title='Edit Profile', form=form)
+
+
+@app.route('/follow/<username>')
+@login_required
+def follow(username):
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        flash('User {} not found.'.format(username))
+        return redirect(url_for('index'))
+    if user == current_user:
+        flash("You can't follow yourself!!")
+        return redirect(url_for('user', username=username))
+    current_user.follow(user)
+    db.session.commit()
+    flash("You're now following {}!".format(username))
+    return redirect(url_for('user', username=username))
+
+
+@app.route('/unfollow/<username>')
+@login_required
+def unfollow(username):
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        flash('User {} not found.'.format(username))
+        return redirect(url_for('index'))
+    if user == current_user:
+        flash("You can't unfollow yourself!!")
+        return redirect(url_for('user', username=username))
+    current_user.unfollow(user)
+    db.session.commit()
+    flash("You're no longer following {}.".format(username))
+    return redirect(url_for('user', username=username))
